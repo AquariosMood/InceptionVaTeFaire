@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  mariadb:
+    container_name: mariadb
+    build:
+      context: ./requirements/mariadb
+    env_file: .env
+    volumes:
+      - /home/crios/data/mariadb:/var/lib/mysql
+    networks:
+      - inception
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+    env_file: .env
+    volumes:
+      - /home/crios/data/wordpress:/var/www/wordpress
+    networks:
+      - inception
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./requirements/nginx
+    env_file: .env
+    volumes:
+      - /home/crios/data/wordpress:/var/www/wordpress
+    ports:
+      - "443:443"
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: unless-stopped
+
+networks:
+  inception:
+    driver: bridge
