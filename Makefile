@@ -1,38 +1,32 @@
-# **************************************************************************** #
-#                                                                              #
-#                                                         :::      ::::::::    #
-#    Makefile                                           :+:      :+:    :+:    #
-#                                                     +:+ +:+         +:+      #
-#    By: crios <marvin@42.fr>                       +#+  +:+       +#+         #
-#                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2025/06/13                              #+#    #+#              #
-#    Updated: 2025/06/13                              ###   ########.fr        #
-#                                                                              #
-# **************************************************************************** #
-
 # VARIABLES
-COMPOSE = docker compose
+COMPOSE      = docker compose
 COMPOSE_FILE = srcs/docker-compose.yml
+ENV_FILE     = srcs/.env
 
 # COMMANDS
 all: up
 
 up:
-	$(COMPOSE) -f $(COMPOSE_FILE) up -d --build
+	@echo "🚀 Building and starting containers..."
+	@$(COMPOSE) --env-file $(ENV_FILE) -f $(COMPOSE_FILE) up -d --build
 
 down:
-	$(COMPOSE) -f $(COMPOSE_FILE) down
+	@echo "🛑 Stopping containers..."
+	@$(COMPOSE) -f $(COMPOSE_FILE) down
 
 restart: down up
 
 logs:
-	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
+	@echo "📜 Showing logs..."
+	@$(COMPOSE) -f $(COMPOSE_FILE) logs -f
 
 clean:
-	$(COMPOSE) -f $(COMPOSE_FILE) down --volumes --remove-orphans
+	@echo "🧹 Cleaning containers, networks, and volumes..."
+	@$(COMPOSE) -f $(COMPOSE_FILE) down --volumes --remove-orphans
 
 fclean: clean
-	sudo docker system prune -a --volumes -f
+	@echo "💥 Removing all project-related images..."
+	@$(COMPOSE) -f $(COMPOSE_FILE) down --rmi all -v
 
 re: fclean all
 

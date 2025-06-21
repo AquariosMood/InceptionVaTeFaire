@@ -1,38 +1,57 @@
 FROM debian:buster
 
-# Create necessary directories and set permissions
-RUN mkdir -p /run/php && \
-    chown www-data:www-data /run/php && \
-    mkdir -p /var/www/wordpress && \
-    chown -R www-data:www-data /var/www
+# Set environment variables
+ENV WORDPRESS_VERSION=6.0 \
+    WORDPRESS_LOCALE=fr_FR \
+    PHP_VERSION=7.3
+
+# Create necessary directories
+RUN mkdir -p /run/php /var/www/wordpress && \
+    chown -R www-data:www-data /run/php /var/www
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     wget \
-    php7.3 \
+    curl \
+    php${PHP_VERSION} \
     php-fpm \
     php-mysql \
+    php-curl \
+    php-gd \
+    php-mbstring \
+    php-xml \
+    php-xmlrpc \
+    php-soap \
+    php-intl \
+    php-zip \
+    php-opcache \
     mariadb-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and extract WordPress to the correct location
-RUN wget https://fr.wordpress.org/wordpress-6.0-fr_FR.tar.gz -P /tmp && \
-    tar -xzf /tmp/wordpress-6.0-fr_FR.tar.gz -C /var/www/wordpress --strip-components=1 && \
-    rm /tmp/wordpress-6.0-fr_FR.tar.gz
-
-# Configure PHP-FPM
-COPY conf/wordpress.conf /usr/local/etc/php-fpm.d/wordpress.conf
+# Download and extract WordPress
+RUN wget https://${WORDPRESS_LOCALE}.wordpress.org/wordpress-${WORDPRESS_VERSION}-${WORDPRESS_LOCALE}.tar.gz -P /tmp && \
+    tar -xzf /tmp/wordpress-${WORDPRESS_VERSION}-${WORDPRESS_LOCALE}.tar.gz -C /var/www/wordpress --strip-components=1 && \
+    rm /tmp/wordpress-${WORDPRESS_VERSION}-${WORDPRESS_LOCALE}.tar.gz
 
 # Install WP-CLI
-RUN wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x wp-cli.phar && \
-    mv wp-cli.phar /usr/local/bin/wp
+RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x /usr/local/bin/wp
 
-# Copy and prepare auto-config script
+# Copy configuration files
+COPY conf/wordpress.conf /etc/php/${PHP_VERSION}/fpm/pool.d/wordpress.conf
 COPY conf/auto_config.sh /usr/local/bin/auto_config.sh
 RUN chmod +x /usr/local/bin/auto_config.sh
 
-# Set the working directory
+# Set permissions
+RUN chown -R www-data:www-data /var/www/wordpress && \
+    find /var/www/wordpress -type d -exec chmod 755 {} \; && \
+    find /var/www/wordpress -type f -exec chmod 644 {} \;
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:9000/ping || exit 1
+
 WORKDIR /var/www/wordpress
 
+ENTRYPOINT ["/usr/local/bin/auto_config.sh"]
 CMD ["php-fpm7.3", "-F"]

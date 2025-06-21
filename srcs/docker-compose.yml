@@ -11,30 +11,42 @@ services:
     networks:
       - inception
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}" ]
+      interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 10
     restart: unless-stopped
 
   wordpress:
+    container_name: wordpress
     build:
       context: ./requirements/wordpress
     env_file: .env
+    environment:
+      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'https://${DOMAIN_NAME}');
+        define('WP_SITEURL', 'https://${DOMAIN_NAME}');
     volumes:
       - /home/crios/data/wordpress:/var/www/wordpress
     networks:
       - inception
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     restart: unless-stopped
 
   nginx:
+    container_name: nginx
     build:
       context: ./requirements/nginx
     env_file: .env
     volumes:
       - /home/crios/data/wordpress:/var/www/wordpress
+      - ${CERTS_PATH}:/etc/nginx/ssl
     ports:
       - "443:443"
     networks:
